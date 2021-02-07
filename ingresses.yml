@@ -1,0 +1,17 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress # the workload resource
+metadata:
+  name: hello-node-ingress # name of the ingress
+  annotations: # options for the ingress controller
+    nginx.ingress.kubernetes.io/rewrite-target: /$1
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: hello-node-service
+                port:
+                  number: 8080

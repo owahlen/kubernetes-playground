@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment # the workload resource
+metadata:
+  name: hello-node-deployment # name of the deployment
+spec:
+  selector: # REQUIRED: define how this deployment finds which pods to manage
+    matchLabels: # this deployment selects a label that is defined in the pod-template
+      app: hello-node # key and value of the label
+  replicas: 2 # tells deployment to run given number of pods matching the selector
+  template: # REQUIRED: the template for each pod to be created by the ReplicaSet
+    metadata:
+      labels: # define a label with a key and a value for this pod
+        app: hello-node
+    spec:
+      containers:
+        - name: hello-node # name of the container to run
+          image: hello-node:latest # name of the image of the container
+          imagePullPolicy: Never # do not pull the container image from an external repository
+          ports:
+            - containerPort: 8080
