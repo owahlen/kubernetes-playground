@@ -20,17 +20,19 @@ From the [minikube](https://minikube.sigs.k8s.io) webpage:
 
 > minikube quickly sets up a local Kubernetes cluster on macOS, Linux, and Windows.
 
-As a default minikube uses the [docker driver](https://minikube.sigs.k8s.io/docs/drivers/docker) to run
-a single container named _minikube_. In this container another docker daemon is started that
-in turn runs all the Kubernetes components, and the containerized services mentioned above.
-The advantage of this container _inception_ is that the outer container encapsulates the setup of the Kubernetes
-setup while the inner containers represent a realistic execution environment.
+As a default, minikube uses the [docker driver](https://minikube.sigs.k8s.io/docs/drivers/docker) to run
+a single docker container named _minikube_. In this container another
+[docker daemon](https://docs.docker.com/get-started/overview/#docker-architecture)
+is started that in turn runs all the Kubernetes components in addition
+to the docker containers making up the actual application.
+The advantage of this container _inception_ is that the outer container encapsulates the setup
+of the Kubernetes cluster while the inner containers represent a realistic execution environment.
 It should be noted that minikube is not meant to be used in a production environment.
 
 ## Required installations
-While minikube provides the cluster infrastructure the
+While minikube provides the cluster infrastructure a command line tool called
 [kubectl](https://kubernetes.io/docs/reference/kubectl/overview/)
-command line tool is used to manage Kubernetes itself.
+is used to manage Kubernetes itself.
 Please follow the instructions on
 [minikube installation](https://kubernetes.io/docs/setup/minikube) and
 [kubectl installation](https://kubernetes.io/docs/tasks/tools/install-kubectl), respectively.
@@ -39,46 +41,45 @@ In addition to installing these executables it is also helpful to install
 
 ## Starting the cluster
 After the installations are finished, use the following commands to create a _minikube_ profile
-and to start the cluster. The options ensure that the minikube cluster is started
-with the docker driver and port 80 of the minikube network is exposed to the host on port 8080.
+and to start the cluster. Per default minikube uses a host-only network. While this is secure it
+inhibits the usage of the application from other hosts in the LAN.
+Use the following options to start the minikube cluster with the docker driver and to
+expose port 80 of the minikube network through port 8080 of the host.
 ```
-minikube start --driver=docker --ports=8080:80
+$ minikube start --driver=docker --ports=8080:80
 ```
 
 Note that if the _minikube_ profile did already exist before executing this command
 the started cluster may not be configured with the given options.
 On Linux minikube profiles are located in the folder `~/.minikube/profiles`.
-In order to validate that the profile is configured correctly run the following command:
+In order to validate that the profile is configured correctly run the following command
+and validate the output:
 ```
-minikube profile list -ojson | jq -r '.valid[0].Config | .Driver, .ExposedPorts[0]'
-```
-It should return the output
-```
+$ minikube profile list -ojson | jq -r '.valid[0].Config | .Driver, .ExposedPorts[0]'
 docker
 8080:80
 ```
 
-As a next step enable the web-based Kubernetes user interface with the following command:
+As a next step, start the web-based Kubernetes user interface with the following command:
 ```
-minikube dashboard
+$ minikube dashboard
 ```
 
-As mentioned above a [docker daemon](https://docs.docker.com/get-started/overview/#docker-architecture)
-is running inside of the _minikube_ docker container. All Kubernetes components and containerized services
+As mentioned above, a docker daemon  is running inside the _minikube_ docker container.
+All Kubernetes components and containerized services
 that are supposed to run in the cluster are located in its registry.
 In this playground the
 [docker build](https://docs.docker.com/engine/reference/commandline/build/)
-command is used to wrap a micro service up into a docker container and store it in a registry.
+command is used to wrap a microservice up into a docker container and store it in a registry.
 In order for the docker command to use the registry of the _inner_ docker daemon
 modify the environment of the current shell with the following command:
 ```
-eval $(minikube -p minikube docker-env)
+$ eval $(minikube -p minikube docker-env)
 ```
 Note that the environment variables can be unset with the following command:
 ```
-unset $(minikube -p minikube docker-env | awk -F '[ =]' '/export/ { print $2 }')
+$ unset $(minikube -p minikube docker-env | awk -F '[ =]' '/export/ { print $2 }')
 ```
-
 
 ## Building a dockerized application
 The folder [hello-node](hello-node) contains a simple 
@@ -87,11 +88,11 @@ that returns the text "Hello World" on a http _get_ request on port 8080.
 In order to package the application into a docker container make sure you have node.js
 installed and run the following commands:
 ```
-cd hello-node
-npm run dockerbuild
+$ cd hello-node
+$ npm run dockerbuild
 ```
-Running the command `docker images` should now show the _hello-node_ container image along
-side several kubernetes containers:
+Running the command `docker images` should now show the _hello-node_ container image alongside
+several kubernetes containers:
 ```
 REPOSITORY                                              TAG                 IMAGE ID            CREATED             SIZE
 hello-node                                              latest              6699706c4507        3 hours ago         1.02GB
@@ -109,74 +110,95 @@ jettech/kube-webhook-certgen                            v1.2.2              5693
 k8s.gcr.io/coredns                                      1.7.0               bfe3a36ebd25        7 months ago        45.2MB
 kubernetesui/metrics-scraper                            v1.0.4              86262685d9ab        10 months ago       36.9MB
 k8s.gcr.io/pause                                        3.2                 80d28bedfe5d        11 months ago       683kB
-
 ```
+
+## Kubernetes components relevant to start an application
+The following definition list points out the relevant Kubernetes components to run this playground.
+Note that they are all visible in the Kubernetes dashboard.
+<dl>
+  <dt><a href="https://kubernetes.io/docs/concepts/architecture/nodes">Node</a></dt>
+  <dd>The physical worker machine that runs containerized applications.
+      In this playground the only node is the local machine that runs minikube.</dd>
+  <dt><a href="https://kubernetes.io/docs/concepts/workloads/pods">Pod</a></dt>
+  <dd>Representation of a group of one or more co-located and co-scheduled containers in the K8s cluster.
+      In terms of Docker concepts, a Pod is similar to a group of Docker containers
+      with shared namespaces and shared filesystem volumes.
+      A Pod is the smallest unit that is managed by Kubernetes.</dd>
+  <dt><a href="https://kubernetes.io/docs/concepts/workloads/controllers/replicaset">ReplicaSet</a></dt>
+  <dd>Description of a group of identical Pods to increase resilience.
+      A ReplicaSet ensures that a specified number of Pod replicas are running at any given time.</dd>
+  <dt><a href="https://kubernetes.io/docs/concepts/workloads/controllers/deployment">Deployment</a></dt>
+  <dd>Description of a <i>desired state</i> of Pods and ReplicaSets.
+      The Deployment defines the container image(s) to be used,
+      and the IP port that exposes the service.
+      It can also be used to describe the ReplicaSet.</dd>
+  <dt><a href="https://kubernetes.io/docs/concepts/services-networking/service">Service</a></dt>
+  <dd>Description of a network service consisting of a set of Pods.
+      The service forwards traffic to a set of Pods through its IP address and port.
+      Depending on its configuration the traffic is distributed with a round robin or random strategy.
+      In a cloud environment the service can also provision a load balancer for the service.</dd>
+  <dt><a href="https://kubernetes.io/docs/concepts/services-networking/ingress">Ingress</a></dt>
+  <dd>Description of exposed HTTP or HTTPS routes from outside the cluster to Services within the cluster.
+      An Ingress may provide load balancing, SSL termination and name-based virtual hosting.
+      The Ingress is fulfilled by an Ingress Controller that needs to be configured separately.
+      Relevant ingress controllers include
+      <a href="https://github.com/kubernetes-sigs/aws-load-balancer-controller#readme">AWS</a>,
+      <a href="https://github.com/kubernetes/ingress-gce/blob/master/README.md#readme">GCE</a> and 
+      <a href="https://github.com/kubernetes/ingress-nginx/blob/master/README.md#readme">nginx</a>.</dd>
+</dl>
 
 ## Starting the application
-The file [deployments.yml](deployments.yml) contains the information on how to
-deploy the application to the cluster.
-In order to start the application run the following command:
+The file [deployments.yml](deployments.yml) defines the _Deployment_
+including the _ReplicaSet_ of the application.
+In order to start the associated _Pods_ run the following command:
 ```
-kubectl apply -f deployments.yml
+$ kubectl apply -f deployments.yml
+deployment.apps/hello-node-deployment created
 ```
-Note that the application can be deleted by running:
+Note that the _Deployment_ can be deleted by running:
 ```
-kubectl delete -f deployments.yml
+$ kubectl delete -f deployments.yml
+deployment.apps "hello-node-deployment" deleted
 ```
-As a next steps the running pods need to be combined in a service that
+As a next steps the running pods need to be combined into a Service that
 makes them reachable under an IP address:
 ```
-kubectl apply -f services.yml
+$ kubectl apply -f services.yml
+service/hello-node-service created
 ```
-In order to expose the service to the outside of the cluster an ingress controller,
-and an ingress resource are needed.
-First enable an NGINX ingress controller in minikube:
+In order to expose the Service to the outside of the cluster an Ingress Controller,
+and an Ingress resource are needed.
+First enable an NGINX Ingress Controller in minikube (this may take a minute):
 ```
-minikube addons enable ingress
+$ minikube addons enable ingress
+🔎  Verifying ingress addon...
+🌟  The 'ingress' addon is enabled
 ```
-Next verify that the NGINX ingress controller is running (this can take a minute):
+Next verify that the NGINX Ingress Controller is running:
 ```
-kubectl get pods -n kube-system
-```
-Start it by running:
-```
-kubectl apply -f ingresses.yml
+$ kubectl get pods -n kube-system
+NAME                                        READY   STATUS      RESTARTS   AGE
+...
+ingress-nginx-controller-558664778f-5j8j2   1/1     Running     0          4h47m
+...
 ```
 
-## Kubectl cheat sheet
-List of all deployments:
+Now start the Ingress by running:
 ```
-kubectl get deployments
+$ kubectl apply -f ingresses.yml
+ingress.networking.k8s.io/hello-node-ingress created
 ```
-List all replica sets
+
+It should now be possible to do a http query on the Ingress and receive the _Hello World_ response:
 ```
-kubectl get rs
+curl $(minikube ip)
+Hello World
 ```
-List all pods including labels
+
+Note, that the IP address used in this statement is not accessible from other hosts on the LAN.
+However, since minikube has been started with a port forwarding the same response should be returned
+with the command:
 ```
-kubectl get pods --show-labels
+$ curl http://localhost:8080
+Hello World
 ```
-## Glossary
-<dl>
-  <dt>workload</dt>
-  <dd>application running on Kubernetes</dd>
-  <dt>node</dt>
-  <dd>worker machine that runs containerized applications</dd>
-  <dt>pod</dt>
-  <dd>represents a group of co-located and co-scheduled containers in the cluster</dd>
-  <dt>control plane</dt>
-  <dd>container orchestration layer that manages nodes and pods</dd>
-  <dt>kube-apiserver</dt>
-  <dd>control plane component that exposes the Kubernetes API</dd>
-  <dt>etcd</dt>
-  <dd>control plane component that provides a key value store</dd>
-  <dt>kube-scheduler</dt>
-  <dd>control plane component that schedules newly created pods to nodes</dd>
-  <dt>kube-controller-manager</dt>
-  <dd>control plane component that runs controller processes
-      (node controller, replication controller, endpoints controller, service account & token controllers)</dd>
-  <dt>kubelet</dt>
-  <dd>node component that makes sure that containers are running in a pod</dd>
-  <dt>kube-proxy</dt>
-  <dd>node component that maintains network rules required for communication with pods</dd>
-</dl>
